@@ -1,0 +1,37 @@
+name: Build victory (Windows x64)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build release
+        run: cargo build --release --locked -p victory
+
+      - name: Build diagnostics
+        run: cargo build --locked --profile diag -p victory --features diagnostics
+
+      - name: Collect
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory out | Out-Null
+          Copy-Item target\release\victory.exe out\
+          Copy-Item target\diag\victory.exe out\victory-diag.exe
+          Copy-Item Play-VIctory.cmd, Play-VIctory-4GB.cmd, victory.example.toml out\
+          Compress-Archive -Path out\* -DestinationPath victory-windows-x64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: victory-windows-x64
+          path: victory-windows-x64.zip
+          retention-days: 30
